@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlackSearch — Граф</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+<style>
+:root {
+  --bg:       #080808;
+  --s1:       #0f0f0f;
+  --s2:       #161616;
+  --b1:       #1e1e1e;
+  --b2:       #2e2e2e;
+  --text:     #c8c8c8;
+  --muted:    #484848;
+  --faint:    #141414;
+  --acc:      #0057bb;
+  --acc2:     #00e5ff;
+  --red:      #ff3b3b;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:grid;grid-template-rows:44px 1fr}
+
+
+.bar{background:var(--s1);border-bottom:1px solid var(--b1);display:flex;align-items:center;padding:0 16px;gap:0;z-index:100}
+.logo{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:4px;color:var(--acc);padding-right:16px;border-right:1px solid var(--b2)}
+.stats{display:flex;padding:0 16px;border-right:1px solid var(--b2)}
+.stat{font-family:var(--mono);font-size:10px;color:var(--muted);padding:0 10px;display:flex;align-items:center;gap:6px}
+.stat+.stat{border-left:1px solid var(--b1)}
+.stat b{color:var(--text);font-weight:600}
+.acts{margin-left:auto;display:flex;gap:3px}
+.tbtn{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--muted);background:transparent;border:1px solid transparent;padding:5px 10px;border-radius:2px;cursor:pointer;transition:color .15s,border-color .15s;white-space:nowrap}
+.tbtn:hover{color:var(--text);border-color:var(--b2)}
+.tbtn.d:hover{color:var(--red);border-color:var(--red)}
+
+
+.layout{display:grid;grid-template-columns:248px 1fr 268px;overflow:hidden}
+
+
+.sl,.sr{background:var(--s1);display:flex;flex-direction:column;overflow:hidden}
+.sl{border-right:1px solid var(--b1)}
+.sr{border-left:1px solid var(--b1)}
+
+.panel{padding:14px 14px 10px;border-bottom:1px solid var(--b1);flex-shrink:0}
+.ptitle{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.ptitle::after{content:'';flex:1;height:1px;background:var(--b1)}
+
+
+.tgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px}
+.tbtype{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px 5px;border:1px solid var(--b2);border-radius:2px;background:transparent;cursor:pointer;transition:all .12s;font-family:var(--mono);color:var(--muted);font-size:7px;letter-spacing:.5px}
+.tbtype .i{font-size:15px;line-height:1}
+.tbtype:hover{background:var(--faint);color:var(--text)}
+.tbtype.on{border-color:var(--acc);background:rgba(200,255,0,.05);color:var(--acc)}
+
+
+input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--b2);color:var(--text);padding:7px 10px;border-radius:2px;font-family:var(--mono);font-size:11px;outline:none;transition:border-color .15s;margin-bottom:6px;-webkit-appearance:none;appearance:none}
+input:focus,select:focus{border-color:var(--acc2)}
+input::placeholder{color:var(--muted);font-size:10px}
+select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23484848'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+select option{background:#0f0f0f;color:#c8c8c8}
+
+
+.btn{width:100%;padding:8px 12px;border:1px solid var(--b2);border-radius:2px;cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:1px;transition:all .15s;background:transparent;color:var(--muted);text-align:center}
+.btn:hover{color:var(--text);background:var(--faint)}
+.btn.add{background:var(--acc);border-color:var(--acc);color:#000;font-weight:600}
+.btn.add:hover{background:#d4ff33;border-color:#d4ff33}
+.btn.edge{border-color:var(--acc2);color:var(--acc2)}
+.btn.edge:hover{background:rgba(0,229,255,.07)}
+
+
+.scroll{flex:1;overflow-y:auto;min-height:0}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+::-webkit-scrollbar-track{background:transparent}
+
+
+.nlist{padding:6px}
+.nempty{font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center;padding:28px 16px;letter-spacing:1px}
+.ni{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:2px;cursor:pointer;border:1px solid transparent;margin-bottom:2px;transition:background .1s}
+.ni:hover{background:var(--faint)}
+.ni.on{background:rgba(200,255,0,.04);border-color:rgba(200,255,0,.18)}
+.ndot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.nlbl{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ntag{font-family:var(--mono);font-size:7px;color:var(--muted);background:var(--faint);padding:2px 5px;border-radius:2px;flex-shrink:0;border:1px solid var(--b1)}
+.nx{font-size:10px;color:var(--muted);cursor:pointer;padding:2px 4px;opacity:0;transition:opacity .1s,color .1s;flex-shrink:0}
+.ni:hover .nx{opacity:1}
+.nx:hover{color:var(--red) !important}
+
+
+.vp{position:relative;background:var(--bg);overflow:hidden}
+.vp::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--faint) 1px,transparent 1px),linear-gradient(90deg,var(--faint) 1px,transparent 1px);background-size:40px 40px;opacity:.5;pointer-events:none}
+#net{width:100%;height:100%;position:relative;z-index:1}
+.hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;pointer-events:none;z-index:10;white-space:nowrap;opacity:.5}
+.hint kbd{background:var(--s1);border:1px solid var(--b2);padding:1px 5px;border-radius:2px;color:var(--text)}
+.nodata{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:2;gap:6px;transition:opacity .3s}
+.nodata.h{opacity:0}
+.nodata-t{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:3px}
+.nodata-s{font-size:11px;color:var(--b2);letter-spacing:1px}
+
+
+.det{padding:14px;display:none;border-top:1px solid var(--b1)}
+.det.vis{display:block}
+.drow{margin-bottom:10px}
+.dkey{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:3px}
+.dval{font-size:12px;color:var(--text);word-break:break-all;line-height:1.5}
+.dval.sm{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.cchip{display:inline-flex;align-items:center;gap:4px;background:var(--faint);border:1px solid var(--b2);border-radius:2px;padding:2px 7px;font-size:10px;margin:2px 2px 0 0;cursor:pointer;transition:border-color .12s}
+.cchip:hover{border-color:var(--acc2)}
+.delbtn{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:7px;margin-top:10px;border:1px solid var(--b1);border-radius:2px;background:transparent;color:var(--muted);font-family:var(--mono);font-size:9px;letter-spacing:1px;cursor:pointer;transition:all .15s}
+.delbtn:hover{border-color:var(--red);color:var(--red)}
+
+
+.srch{padding:8px;border-bottom:1px solid var(--b1);flex-shrink:0}
+.srch input{margin-bottom:0}
+
+
+.toast{position:fixed;bottom:20px;right:20px;font-family:var(--mono);font-size:10px;letter-spacing:1px;background:var(--s1);border:1px solid var(--b2);border-radius:2px;padding:9px 14px;z-index:9999;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;pointer-events:none;color:var(--text)}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{border-color:var(--acc);color:var(--acc)}
+.toast.err{border-color:var(--red);color:var(--red)}
+
+
+.eform-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.eform-row select{margin-bottom:0}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="logo">BLACKSEARCH</div>
+  <div class="stats">
+    <div class="stat">NODES <b id="sN">0</b></div>
+    <div class="stat">EDGES <b id="sE">0</b></div>
+  </div>
+  <div class="acts">
+    <button class="tbtn" onclick="doLayout()">⟳ LAYOUT</button>
+    <button class="tbtn" onclick="fitAll()">⊡ FIT</button>
+    <button class="tbtn" onclick="exportJSON()">↓ EXPORT</button>
+    <button class="tbtn" onclick="importJSON()">↑ IMPORT</button>
+    <button class="tbtn d" onclick="clearAll()">✕ CLEAR</button>
+  </div>
+</div>
+
+<div class="layout">
+
+  <aside class="sl">
+    
+    <div class="panel">
+      <div class="ptitle">Узел</div>
+      <div class="tgrid" id="tgrid">
+        <button class="tbtype on" data-t="person"       onclick="pickT(this)"><span class="i">👤</span>ЛИЦО</button>
+        <button class="tbtype"    data-t="organization" onclick="pickT(this)"><span class="i">🏢</span>ОРГ</button>
+        <button class="tbtype"    data-t="phone"        onclick="pickT(this)"><span class="i">📱</span>ТЕЛ</button>
+        <button class="tbtype"    data-t="email"        onclick="pickT(this)"><span class="i">📧</span>МЛ</button>
+        <button class="tbtype"    data-t="domain"       onclick="pickT(this)"><span class="i">🌐</span>ДОМ</button>
+        <button class="tbtype"    data-t="ip"           onclick="pickT(this)"><span class="i">💻</span>IP</button>
+        <button class="tbtype"    data-t="social"       onclick="pickT(this)"><span class="i">🔗</span>СОЦ</button>
+        <button class="tbtype"    data-t="crypto"       onclick="pickT(this)"><span class="i">🪙</span>КРП</button>
+      </div>
+      <input id="nLbl" placeholder="Название / значение" onkeydown="if(event.key==='Enter')addNode()">
+      <input id="nVal" placeholder="Описание (необязательно)" onkeydown="if(event.key==='Enter')addNode()">
+      <button class="btn add" onclick="addNode()">+ ДОБАВИТЬ УЗЕЛ</button>
+    </div>
+
+    <!-- ADD EDGE -->
+    <div class="panel">
+      <div class="ptitle">Связь</div>
+      <div class="eform-row">
+        <select id="eSrc" onchange="validateEdgeForm()"><option value="">Источник...</option></select>
+        <select id="eTgt" onchange="validateEdgeForm()"><option value="">Цель...</option></select>
+      </div>
+      <input id="eRel" placeholder="Тип связи (напр: работает в)" oninput="validateEdgeForm()" onkeydown="if(event.key==='Enter')addEdge()">
+      <button class="btn edge" id="edgeBtn" onclick="addEdge()" disabled>→ СОЗДАТЬ СВЯЗЬ</button>
+    </div>
+
+    
+    <div class="panel" style="border-bottom:none">
+      <div class="ptitle">Действия</div>
+      <button class="btn" onclick="doLayout()" style="margin-bottom:4px">⟳ Пересчитать физику</button>
+      <button class="btn" onclick="fitAll()" style="margin-bottom:4px">⊡ Вписать всё</button>
+      <button class="btn" onclick="exportJSON()">↓ Экспорт JSON</button>
+    </div>
+  </aside>
+
+  <main class="vp" id="vp">
+    <div class="nodata" id="nodata">
+      <div class="nodata-t">ГРАФ ПУСТ</div>
+      <div class="nodata-s">Добавьте первый узел слева</div>
+    </div>
+    <div id="net"></div>
+    <div class="hint"><kbd>Scroll</kbd> масштаб &nbsp;<kbd>Drag</kbd> перемещение &nbsp;<kbd>Ctrl+Z</kbd> отмена</div>
+  </main>
+
+  <aside class="sr">
+    <div class="srch">
+      <input id="filterIn" placeholder="Поиск узлов..." oninput="filterList()">
+    </div>
+    <div class="scroll" id="nlist"><div class="nempty">— НЕМА —</div></div>
+    <div id="det">
+      <div class="nempty" id="detEmpty" style="padding:20px">ВЫБЕРИТЕ УЗЕЛ</div>
+      <div class="det" id="detPanel"></div>
+    </div>
+  </aside>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+var net   = null;
+var nodes = new vis.DataSet([]);
+var edges = new vis.DataSet([]);
+var selT  = 'person';
+var hist  = [];
+var filt  = '';
+var selNid = null;
+
+var COLORS = {
+  person:'#ff79c6', organization:'#8be9fd', domain:'#50fa7b',
+  ip:'#ffb86c', email:'#f1fa8c', phone:'#bd93f9',
+  social:'#c8ff00', crypto:'#ffd580', 'default':'#6272a4'
+};
+var ICONS = {
+  person:'👤', organization:'🏢', domain:'🌐',
+  ip:'💻', email:'📧', phone:'📱',
+  social:'🔗', crypto:'🪙', 'default':'📍'
+};
+
+
+function init() {
+  var container = document.getElementById('net');
+  net = new vis.Network(container, { nodes: nodes, edges: edges }, {
+    nodes: {
+      shape: 'dot', size: 12,
+      font: { color:'#c8c8c8', size:11, vadjust:24, face:"'IBM Plex Mono',monospace" },
+      borderWidth: 2, borderWidthSelected: 3,
+      shadow: { enabled:true, color:'rgba(0,0,0,.8)', size:10, x:2, y:3 }
+    },
+    edges: {
+      color: { color:'#252525', highlight:'#c8ff00', hover:'#383838' },
+      arrows: { to: { enabled:true, scaleFactor:.5, type:'arrow' } },
+      font: { color:'#383838', size:9, align:'middle', strokeWidth:0, face:"'IBM Plex Mono',monospace" },
+      smooth: { type:'continuous', roundness:.3 },
+      width: 1, selectionWidth: 2
+    },
+    physics: {
+      enabled: true,
+      barnesHut: { gravitationalConstant:-4000, centralGravity:.15, springLength:160, springConstant:.035, damping:.1, avoidOverlap:.4 },
+      stabilization: { iterations:120, updateInterval:25 }
+    },
+    interaction: { hover:true, tooltipDelay:300, multiselect:true }
+  });
+
+  net.on('selectNode', function(p) {
+    if (p.nodes.length === 1) { selNid = p.nodes[0]; showDet(selNid); markNi(selNid); }
+  });
+  net.on('deselectNode', function() { selNid = null; hideDet(); markNi(null); });
+  net.on('stabilized', function() { net.setOptions({ physics:{ enabled:false } }); });
+
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey||e.metaKey) && e.key==='z') { e.preventDefault(); undo(); }
+  });
+
+  load();
+}
+
+
+function load() {
+  fetch('/api/graph').then(r=>r.json()).then(function(d) {
+    nodes.clear(); edges.clear();
+    
+    if (d.nodes && d.nodes.length) nodes.update(d.nodes);
+   
+    if (d.edges && d.edges.length) edges.update(d.edges);
+    sync(); rebuildSelects();
+  }).catch(function() { toast('Ошибка загрузки','err'); });
+}
+
+
+function pickT(el) {
+  document.querySelectorAll('.tbtype').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  selT = el.dataset.t;
+}
+
+
+function mkVN(n) {
+  var c = COLORS[n.type] || COLORS['default'];
+  var ic = ICONS[n.type] || ICONS['default'];
+  return {
+    id: n.id,
+    label: ic + ' ' + n.label,
+    cleanLabel: n.label,
+    nodeType: n.type,
+    nodeValue: n.value || '',
+    createdAt: n.created_at || '',
+    color: { background:'#0f0f0f', border:c, highlight:{ background:'#1a1a1a', border:c }, hover:{ background:'#141414', border:c } },
+    shape: 'dot',
+    title: mkTip(n)
+  };
+}
+
+function mkTip(n) {
+  var s = '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#c8c8c8;line-height:1.6">';
+  s += '<b>' + esc(n.label) + '</b><br>';
+  s += '<span style="color:#484848">' + (n.type||'') + '</span>';
+  if (n.value) s += '<br>' + esc(n.value);
+  return s + '</div>';
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+
+function addNode() {
+  var label = document.getElementById('nLbl').value.trim();
+  if (!label) { toast('Введите название','err'); return; }
+  var value = document.getElementById('nVal').value.trim();
+
+  fetch('/api/nodes', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ label:label, type:selT, value:value })
+  })
+  .then(r=>r.json())
+  .then(function(n) {
+    if (n.error) { toast(n.error,'err'); return; }
+    var vn = mkVN(n);
+    nodes.update([vn]);
+    hist.push({ a:'node', id:n.id });
+    document.getElementById('nLbl').value = '';
+    document.getElementById('nVal').value = '';
+    sync();
+    addSelectOption(n.id, n.type, n.label);
+    toast('+ ' + n.label,'ok');
+    setTimeout(function() {
+      net.setOptions({ physics:{ enabled:true } });
+      net.focus(n.id, { animation:{ duration:500 } });
+    }, 60);
+  })
+  .catch(function(e) { toast('Ошибка добавления','err'); console.error(e); });
+}
+
+// ─── ADD EDGE ────────────────────────────────────────────────────
+function addEdge() {
+  var src = document.getElementById('eSrc').value;
+  var tgt = document.getElementById('eTgt').value;
+  var rel = document.getElementById('eRel').value.trim();
+  if (!src || !tgt || !rel) { toast('Заполните все поля','err'); return; }
+  if (src === tgt) { toast('Нельзя связать узел с собой','err'); return; }
+
+  var btn = document.getElementById('edgeBtn');
+  btn.textContent = '...';
+  btn.disabled = true;
+
+  fetch('/api/edges', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ source:src, target:tgt, relationship:rel })
+  })
+  .then(function(r) {
+    if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'HTTP ' + r.status); });
+    return r.json();
+  })
+  .then(function(e) {
+    if (e.error) { throw new Error(e.error); }
+    // vis edge needs from/to/id/label
+    edges.update([{ id:e.id, from:e.source, to:e.target, label:e.relationship }]);
+    hist.push({ a:'edge', id:e.id });
+    document.getElementById('eRel').value = '';
+    syncStats();
+    validateEdgeForm();
+    toast('→ ' + rel,'ok');
+    net.setOptions({ physics:{ enabled:true } });
+  })
+  .catch(function(e) {
+    toast(e.message || 'Ошибка создания связи','err');
+  })
+  .finally(function() {
+    btn.textContent = '→ СОЗДАТЬ СВЯЗЬ';
+    validateEdgeForm();
+  });
+}
+
+
+function delNode(id) {
+  fetch('/api/nodes/' + id, { method:'DELETE' }).then(function() {
+   
+    edges.get().forEach(function(e) {
+      if (e.from === id || e.to === id) edges.remove(e.id);
+    });
+    nodes.remove(id);
+    removeSelectOption(id);
+    if (selNid === id) { hideDet(); selNid = null; }
+    syncStats(); renderList();
+    toast('Удалено','');
+  }).catch(function() { toast('Ошибка удаления','err'); });
+}
+
+function delEdge(id) {
+  fetch('/api/edges/' + id, { method:'DELETE' }).then(function() {
+    edges.remove(id);
+    syncStats();
+    if (selNid) showDet(selNid);
+    toast('Связь удалена','');
+  }).catch(function() { toast('Ошибка','err'); });
+}
+
+
+function undo() {
+  if (!hist.length) { toast('Нечего отменять',''); return; }
+  var last = hist.pop();
+  if (last.a === 'node') delNode(last.id);
+  else if (last.a === 'edge') delEdge(last.id);
+}
+
+
+function clearAll() {
+  if (!confirm('Удалить весь граф?')) return;
+  fetch('/api/clear', { method:'DELETE' }).then(function() {
+    nodes.clear(); edges.clear(); hist = [];
+    rebuildSelects(); sync(); hideDet(); markNi(null);
+    toast('Граф очищен','');
+  });
+}
+
+
+function rebuildSelects() {
+  var all = nodes.get();
+  ['eSrc','eTgt'].forEach(function(sid) {
+    var sel = document.getElementById(sid);
+    var curVal = sel.value;
+    sel.innerHTML = '<option value="">Выбрать...</option>';
+    all.forEach(function(n) {
+      var opt = document.createElement('option');
+      opt.value = n.id;
+      opt.textContent = (ICONS[n.nodeType]||'📍') + ' ' + (n.cleanLabel||n.id);
+      sel.appendChild(opt);
+    });
+    sel.value = curVal; 
+  });
+  validateEdgeForm();
+}
+
+function addSelectOption(id, type, label) {
+  ['eSrc','eTgt'].forEach(function(sid) {
+    var sel = document.getElementById(sid);
+    
+    if (sel.querySelector('option[value="' + id + '"]')) return;
+    var opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = (ICONS[type]||'📍') + ' ' + label;
+    sel.appendChild(opt);
+  });
+}
+
+function removeSelectOption(id) {
+  ['eSrc','eTgt'].forEach(function(sid) {
+    var sel = document.getElementById(sid);
+    var opt = sel.querySelector('option[value="' + id + '"]');
+    if (opt) {
+      opt.remove();
+      if (sel.value === id) sel.value = '';
+    }
+  });
+  validateEdgeForm();
+}
+
+function validateEdgeForm() {
+  var src = document.getElementById('eSrc').value;
+  var tgt = document.getElementById('eTgt').value;
+  var rel = document.getElementById('eRel').value.trim();
+  var btn = document.getElementById('edgeBtn');
+  var ok  = src && tgt && rel && src !== tgt;
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '0.4';
+  btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
+}
+
+
+function sync() {
+  syncStats();
+  renderList();
+  var empty = document.getElementById('nodata');
+  if (nodes.length > 0) empty.classList.add('h');
+  else empty.classList.remove('h');
+}
+
+function syncStats() {
+  document.getElementById('sN').textContent = nodes.length;
+  document.getElementById('sE').textContent = edges.length;
+}
+
+
+function renderList() {
+  var list = document.getElementById('nlist');
+  var all  = nodes.get();
+  var ft   = filt.toLowerCase();
+  var fil  = ft ? all.filter(n => (n.cleanLabel||'').toLowerCase().includes(ft) || (n.nodeType||'').includes(ft)) : all;
+
+  if (!fil.length) {
+    list.innerHTML = '<div class="nempty">' + (ft ? 'НЕТ РЕЗУЛЬТАТОВ' : '— НЕМА —') + '</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  fil.forEach(function(n) {
+    var c = COLORS[n.nodeType] || COLORS['default'];
+    var el = document.createElement('div');
+    el.className = 'ni' + (n.id === selNid ? ' on' : '');
+    el.dataset.id = n.id;
+    el.innerHTML =
+      '<div class="ndot" style="background:'+c+';border:1px solid '+c+'"></div>' +
+      '<span class="nlbl">' + esc(n.cleanLabel||n.id) + '</span>' +
+      '<span class="ntag">' + (n.nodeType||'') + '</span>' +
+      '<span class="nx" onclick="event.stopPropagation();delNode(\''+n.id+'\')">✕</span>';
+    el.addEventListener('click', function() {
+      selNid = n.id;
+      net.selectNodes([n.id]);
+      net.focus(n.id, { animation:{ duration:400 } });
+      showDet(n.id);
+      markNi(n.id);
+    });
+    list.appendChild(el);
+  });
+}
+
+function filterList() {
+  filt = document.getElementById('filterIn').value;
+  renderList();
+}
+
+function markNi(id) {
+  document.querySelectorAll('.ni').forEach(function(el) {
+    el.classList.toggle('on', el.dataset.id === id);
+  });
+}
+
+
+function showDet(id) {
+  var n = nodes.get(id);
+  if (!n) return;
+  document.getElementById('detEmpty').style.display = 'none';
+  var panel = document.getElementById('detPanel');
+  panel.classList.add('vis');
+
+  var connEdges = edges.get().filter(e => e.from === id || e.to === id);
+  var connsHTML = '';
+  if (connEdges.length) {
+    connEdges.forEach(function(e) {
+      var oid = e.from === id ? e.to : e.from;
+      var on  = nodes.get(oid);
+      var lbl = on ? esc(on.cleanLabel||oid) : oid;
+      var dir = e.from === id ? '→' : '←';
+      connsHTML +=
+        '<span class="cchip" onclick="focusN(\''+oid+'\')">' +
+          dir+' <span>'+lbl+'</span>' +
+          ' <span style="color:var(--muted);font-size:8px">'+esc(e.label||'')+'</span>' +
+          ' <span onclick="event.stopPropagation();delEdge(\''+e.id+'\')" style="margin-left:3px;color:var(--muted);font-size:9px;cursor:pointer" title="Удалить связь">✕</span>' +
+        '</span>';
+    });
+  } else {
+    connsHTML = '<span style="color:var(--muted);font-family:var(--mono);font-size:9px">—</span>';
+  }
+
+  panel.innerHTML =
+    row('Название', esc(n.cleanLabel||'—')) +
+    row('Тип', (ICONS[n.nodeType]||'') + ' ' + (n.nodeType||'—')) +
+    (n.nodeValue ? row('Значение', esc(n.nodeValue)) : '') +
+    (n.createdAt ? row('Создан', '<span class="sm">'+new Date(n.createdAt).toLocaleString('ru')+'</span>') : '') +
+    '<div class="drow"><div class="dkey">Связи ('+connEdges.length+')</div><div class="dval">'+connsHTML+'</div></div>' +
+    row('<span style="font-size:7px">ID</span>', '<span class="sm">'+n.id+'</span>') +
+    '<button class="delbtn" onclick="delNode(\''+id+'\')">✕ УДАЛИТЬ УЗЕЛ</button>';
+}
+
+function row(k, v) {
+  return '<div class="drow"><div class="dkey">'+k+'</div><div class="dval">'+v+'</div></div>';
+}
+
+function hideDet() {
+  document.getElementById('detEmpty').style.display = '';
+  var p = document.getElementById('detPanel');
+  p.classList.remove('vis');
+  p.innerHTML = '';
+}
+
+function focusN(id) {
+  selNid = id;
+  net.selectNodes([id]);
+  net.focus(id, { animation:{ duration:500 } });
+  showDet(id);
+  markNi(id);
+}
+
+
+function fitAll() {
+  net.fit({ animation:{ duration:600, easingFunction:'easeInOutQuad' } });
+}
+
+function doLayout() {
+  net.setOptions({ physics:{ enabled:true } });
+  setTimeout(function() { net.setOptions({ physics:{ enabled:false } }); }, 2500);
+  toast('Перерасчёт...','');
+}
+
+
+function exportJSON() {
+  var data = {
+    nodes: nodes.get().map(n => ({ id:n.id, label:n.cleanLabel, type:n.nodeType, value:n.nodeValue })),
+    edges: edges.get().map(e => ({ source:e.from, target:e.to, relationship:e.label })),
+    exported: new Date().toISOString()
+  };
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+  a.download = 'bs_graph_' + Date.now() + '.json';
+  a.click();
+  toast('Экспортировано','ok');
+}
+
+function importJSON() {
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json';
+  inp.onchange = function(e) {
+    var f = e.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function(ev) {
+      try {
+        var d = JSON.parse(ev.target.result);
+        var nodeArr = d.nodes || [];
+        var edgeArr = d.edges || [];
+        var idMap = {};
+        var done = 0;
+        var total = nodeArr.length;
+
+        if (!total) { toast('Нет узлов в файле','err'); return; }
+
+        nodeArr.forEach(function(n) {
+          fetch('/api/nodes',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ label:n.label||n.id, type:n.type||'default', value:n.value||'' })
+          }).then(r=>r.json()).then(function(created) {
+            idMap[n.id] = created.id;
+            if (++done === total) importEdgesPhase(edgeArr, idMap);
+          }).catch(function() { if (++done === total) importEdgesPhase(edgeArr, idMap); });
+        });
+      } catch(ex) { toast('Ошибка JSON','err'); }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+
+function importEdgesPhase(edgeArr, idMap) {
+  if (!edgeArr.length) { load(); toast('Импортировано','ok'); return; }
+  var done = 0;
+  edgeArr.forEach(function(e) {
+    var src = idMap[e.source] || e.source;
+    var tgt = idMap[e.target] || e.target;
+    fetch('/api/edges',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ source:src, target:tgt, relationship:e.relationship||'—' })
+    }).finally(function() { if (++done === edgeArr.length) { load(); toast('Импортировано','ok'); } });
+  });
+}
+
+
+function toast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast' + (type ? ' '+type : '') + ' show';
+  clearTimeout(el._t);
+  el._t = setTimeout(function() { el.classList.remove('show'); }, 2400);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
