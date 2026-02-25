@@ -44,7 +44,7 @@ BlackSearchV4/
 ├── main.go                    # Главный файл, меню
 ├── go.mod
 ├── go.sum
-├── progress_bar/              # Утилиты вывода (вынесены из modules)
+├── progress_bar/              # Утилиты вывода 
 │   └── progress.go
 ├── html/                      # HTML-шаблоны (веб-интерфейс)
 │   └── graph.html             # Граф связей (vis-network)
